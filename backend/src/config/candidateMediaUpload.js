@@ -4,12 +4,14 @@ import path from 'path';
 import multer from 'multer';
 import { AppError } from '../utils/AppError.js';
 
-const temporaryRoot = path.join(
-  process.cwd(),
-  'uploads',
-  'interviews',
-  'temp',
-);
+const temporaryRoot = process.env.VERCEL
+  ? path.join('/tmp', 'talentlens', 'interviews', 'temp')
+  : path.join(
+      process.cwd(),
+      'uploads',
+      'interviews',
+      'temp',
+    );
 
 fs.mkdirSync(temporaryRoot, { recursive: true });
 
