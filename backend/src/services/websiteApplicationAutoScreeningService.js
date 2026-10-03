@@ -1,3 +1,4 @@
+import { waitUntil } from '@vercel/functions';
 import { User } from '../models/User.js';
 import { WebsiteApplication } from '../models/WebsiteApplication.js';
 import { promoteWebsiteApplications } from './websiteApplicationPromotionService.js';
@@ -66,12 +67,19 @@ export async function autoScreenWebsiteApplication({ organization, applicationId
 }
 
 export function queueWebsiteApplicationAutoScreening(args) {
-  setImmediate(() => {
-    autoScreenWebsiteApplication(args).catch((error) => {
-      console.error('[Website Auto Screening] Failed:', {
-        applicationId: String(args.applicationId),
-        message: error?.message || String(error),
-      });
+  const task = autoScreenWebsiteApplication(args).catch((error) => {
+    console.error('[Website Auto Screening] Failed:', {
+      applicationId: String(args.applicationId),
+      message: error?.message || String(error),
     });
+  });
+
+  if (process.env.VERCEL) {
+    waitUntil(task);
+    return;
+  }
+
+  setImmediate(() => {
+    void task;
   });
 }
