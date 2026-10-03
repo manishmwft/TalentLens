@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import mammoth from 'mammoth';
-import { PDFParse } from 'pdf-parse';
+import pdfParse from 'pdf-parse';
 
 function cleanText(value) {
   return String(value || '')
@@ -29,27 +29,14 @@ async function resolveFileBuffer(file) {
   return fs.readFile(location);
 }
 
-async function extractPdfText(buffer) {
-  const parser = new PDFParse({ data: buffer });
-
-  try {
-    const result = await parser.getText();
-    return result.text || '';
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`PDF parsing failed: ${message}`);
-  } finally {
-    await parser.destroy().catch(() => {});
-  }
-}
-
 export async function extractResumeText(file) {
   const extension = path.extname(file.originalname || file.filename || '').toLowerCase();
   const buffer = await resolveFileBuffer(file);
   let rawText;
 
   if (extension === '.pdf') {
-    rawText = await extractPdfText(buffer);
+    const result = await pdfParse(buffer);
+    rawText = result.text || '';
   } else if (extension === '.docx') {
     const result = await mammoth.extractRawText({ buffer });
     rawText = result.value || '';
