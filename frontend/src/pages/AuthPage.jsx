@@ -241,9 +241,11 @@ export default function AuthPage({
         <div className="absolute -right-28 top-12 h-80 w-80 rounded-full bg-brand-500/20 blur-3xl" />
 
         <div className="relative flex items-center gap-3">
-          <span className="grid h-12 w-12 place-items-center rounded-2xl bg-brand-500 text-xl font-black">
-            T
-          </span>
+          <img
+            src="/talentlens-logo.png"
+            alt="TalentLens AI"
+            className="h-12 w-12 object-contain"
+          />
 
           <div>
             <strong className="block text-xl">
@@ -300,9 +302,11 @@ export default function AuthPage({
       <section className="flex min-h-screen items-center justify-center px-5 py-10 md:px-10">
         <div className="w-full max-w-[460px] rounded-3xl border border-slate-800 bg-[#0b1220] p-6 shadow-2xl shadow-black/30 sm:p-8 lg:p-10">
           <div className="mb-8 flex items-center gap-3 lg:hidden">
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-500 font-black">
-              T
-            </span>
+            <img
+              src="/talentlens-logo.png"
+              alt="TalentLens AI"
+              className="h-10 w-10 object-contain"
+            />
 
             <strong className="text-xl">
               TalentLens AI

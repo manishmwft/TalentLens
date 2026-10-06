@@ -1,7 +1,12 @@
 import fs from 'fs/promises';
 import path from 'path';
 import mammoth from 'mammoth';
-import pdfParse from 'pdf-parse';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+// pdf-parse@1.1.1's package entry runs its bundled test when loaded from ESM/Node 22.
+// Load the parser implementation directly so app startup never executes that test file.
+const pdfParse = require('pdf-parse/lib/pdf-parse.js');
 
 function cleanText(value) {
   return String(value || '')

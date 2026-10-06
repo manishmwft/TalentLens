@@ -46,7 +46,7 @@ export default function DashboardLayout() {
     <div className="min-h-screen bg-[#070b14] text-slate-100">
       <aside className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r border-slate-800 bg-[#0a0f1c] p-4 transition-[width,transform] duration-300 lg:translate-x-0 ${sidebarWidth} ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className={`mb-7 flex h-12 items-center ${collapsed ? 'lg:justify-center' : 'justify-between'}`}>
-          <div className="flex min-w-0 items-center gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-500 font-black text-white">T</span><div className={`${collapsed ? 'lg:hidden' : ''}`}><strong className="block text-lg">TalentLens AI</strong><span className="text-xs text-slate-500">AI recruiter workspace</span></div></div>
+          <div className="flex min-w-0 items-center gap-3"><img src="/talentlens-logo.png" alt="TalentLens AI" className="h-10 w-10 shrink-0 object-contain" /><div className={`${collapsed ? 'lg:hidden' : ''}`}><strong className="block text-lg">TalentLens AI</strong><span className="text-xs text-slate-500">AI recruiter workspace</span></div></div>
           <button type="button" className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white lg:hidden" onClick={() => setMobileOpen(false)} aria-label="Close sidebar"><svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 6 12 12M18 6 6 18" strokeLinecap="round" /></svg></button>
         </div>
 
