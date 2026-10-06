@@ -14,6 +14,12 @@ const screeningSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    websiteApplication: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'WebsiteApplication',
+      default: null,
+      index: true,
+    },
     jobDescriptionRef: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'JobDescription',
@@ -58,13 +64,17 @@ const screeningSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-// A website-originated JD gets one reusable screening container. This keeps
-// all applicants for the same WordPress job grouped under the same JD.
+// Each website application owns its own screening. This keeps automatic
+// WordPress screening isolated to exactly one candidate while preserving
+// multi-candidate manual screenings.
 screeningSchema.index(
-  { organization: 1, jobDescriptionRef: 1, source: 1 },
+  { organization: 1, websiteApplication: 1, source: 1 },
   {
     unique: true,
-    partialFilterExpression: { source: 'website' },
+    partialFilterExpression: {
+      source: 'website',
+      websiteApplication: { $type: 'objectId' },
+    },
   },
 );
 

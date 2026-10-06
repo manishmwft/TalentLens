@@ -4,10 +4,22 @@ import { WebsiteApplication } from '../models/WebsiteApplication.js';
 import { recordCandidateEvent } from './candidateTimelineService.js';
 import { AppError } from '../utils/AppError.js';
 
-async function getOrCreateWebsiteScreening({ organization, jobDescription, recruiter }) {
+async function getOrCreateWebsiteScreening({ organization, jobDescription, recruiter, application }) {
+  // Website applications are intentionally isolated: one application = one
+  // screening. Reuse only the screening already assigned to this application
+  // so retries remain idempotent.
+  if (application.screening) {
+    const assigned = await Screening.findOne({
+      _id: application.screening,
+      organization,
+      source: 'website',
+    });
+    if (assigned) return assigned;
+  }
+
   let screening = await Screening.findOne({
     organization,
-    jobDescriptionRef: jobDescription._id,
+    websiteApplication: application._id,
     source: 'website',
   });
 
@@ -17,6 +29,7 @@ async function getOrCreateWebsiteScreening({ organization, jobDescription, recru
     return await Screening.create({
       organization,
       recruiter,
+      websiteApplication: application._id,
       jobDescriptionRef: jobDescription._id,
       jobDescriptionTitle: jobDescription.title,
       jobDescription: jobDescription.description,
@@ -30,18 +43,16 @@ async function getOrCreateWebsiteScreening({ organization, jobDescription, recru
       analysisStatus: 'pending',
     });
   } catch (error) {
-    // Protect against two recruiters promoting applications for the same JD
-    // at nearly the same time. The unique website-screening index wins.
+    // Two retries for the same website application can race. The unique
+    // per-application index makes one win and the other reuse it.
     if (error?.code === 11000) {
       screening = await Screening.findOne({
         organization,
-        jobDescriptionRef: jobDescription._id,
+        websiteApplication: application._id,
         source: 'website',
       });
-
       if (screening) return screening;
     }
-
     throw error;
   }
 }
@@ -199,16 +210,17 @@ export async function promoteWebsiteApplications({
   for (const applicationId of applicationIds) {
     const application = applicationById.get(applicationId);
     const jd = application.jobDescription;
-    const jdKey = jd._id.toString();
+    const applicationKey = application._id.toString();
 
-    let screening = screeningCache.get(jdKey);
+    let screening = screeningCache.get(applicationKey);
     if (!screening) {
       screening = await getOrCreateWebsiteScreening({
         organization,
         jobDescription: jd,
         recruiter,
+        application,
       });
-      screeningCache.set(jdKey, screening);
+      screeningCache.set(applicationKey, screening);
     }
 
     const { candidate, created } = await ensureCandidate({

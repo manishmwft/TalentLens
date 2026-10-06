@@ -146,6 +146,20 @@ export const listWebsiteApplications = asyncHandler(async (req, res) => {
     WebsiteApplication.aggregate([
       { $match: { organization } },
       {
+        $lookup: {
+          from: 'candidates',
+          localField: 'candidate',
+          foreignField: '_id',
+          as: 'candidateSummary',
+        },
+      },
+      {
+        $unwind: {
+          path: '$candidateSummary',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
         $group: {
           _id: null,
           total: { $sum: 1 },
@@ -166,6 +180,37 @@ export const listWebsiteApplications = asyncHandler(async (req, res) => {
           },
           analyzed: {
             $sum: { $cond: [{ $eq: ['$status', 'analyzed'] }, 1, 0] },
+          },
+          failed: {
+            $sum: { $cond: [{ $eq: ['$status', 'failed'] }, 1, 0] },
+          },
+          analyzedScoreTotal: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$status', 'analyzed'] },
+                    { $ne: ['$candidateSummary.analysis.matchScore', null] },
+                  ],
+                },
+                '$candidateSummary.analysis.matchScore',
+                0,
+              ],
+            },
+          },
+          analyzedScoreCount: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$status', 'analyzed'] },
+                    { $ne: ['$candidateSummary.analysis.matchScore', null] },
+                  ],
+                },
+                1,
+                0,
+              ],
+            },
           },
         },
       },
@@ -191,7 +236,17 @@ export const listWebsiteApplications = asyncHandler(async (req, res) => {
     autoScreening: 0,
     archived: 0,
     analyzed: 0,
+    failed: 0,
+    analyzedScoreTotal: 0,
+    analyzedScoreCount: 0,
   };
+
+  summary.averageAiScore = summary.analyzedScoreCount
+    ? Math.round(summary.analyzedScoreTotal / summary.analyzedScoreCount)
+    : 0;
+
+  delete summary.analyzedScoreTotal;
+  delete summary.analyzedScoreCount;
 
   res.json({
     success: true,
