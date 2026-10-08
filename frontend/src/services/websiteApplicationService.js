@@ -50,3 +50,8 @@ export async function autoMapWebsiteApplications() {
   const { data } = await api.post('/website-applications/auto-map');
   return data;
 }
+
+export async function recoverFailedWebsiteScreening(applicationId) {
+  const { data } = await api.post(`/website-applications/${applicationId}/recover-screening`);
+  return data.screeningId;
+}

@@ -9,6 +9,7 @@ import {
   getWebsiteApplication,
 
   getWebsiteApplications,
+  recoverFailedWebsiteScreening,
 
 } from '../services/websiteApplicationService.js';
 
@@ -229,6 +230,23 @@ export default function WebsiteApplicationsPage() {
   }
 
 
+
+  async function openScreening(application) {
+    if (application.screeningId) {
+      window.location.assign(`/screenings/${application.screeningId}`);
+      return;
+    }
+    setActionId(`recover:${application.id}`);
+    setError('');
+    try {
+      const screeningId = await recoverFailedWebsiteScreening(application.id);
+      window.location.assign(`/screenings/${screeningId}`);
+    } catch (err) {
+      setError(apiError(err, 'Unable to recover this screening.'));
+    } finally {
+      setActionId('');
+    }
+  }
 
   async function downloadResume(application) {
 
@@ -456,7 +474,7 @@ export default function WebsiteApplicationsPage() {
 
                     <td className="px-3 py-4 whitespace-nowrap"><StatusPill status={application.status} /></td>
 
-                    <td className="px-3 py-4 text-right"><div className="flex flex-nowrap justify-end gap-2"><button type="button" onClick={() => openDetail(application.id)} className="shrink-0 whitespace-nowrap rounded-lg border border-slate-700 px-3 py-2 text-xs font-bold hover:bg-slate-800">View</button>{application.screeningId && <a href={`/screenings/${application.screeningId}`} className="shrink-0 whitespace-nowrap rounded-lg border border-indigo-500/30 px-3 py-2 text-xs font-bold text-indigo-300 hover:bg-indigo-500/10">Screening</a>}</div></td>
+                    <td className="px-3 py-4 text-right"><div className="flex flex-nowrap justify-end gap-2"><button type="button" onClick={() => openDetail(application.id)} className="shrink-0 whitespace-nowrap rounded-lg border border-slate-700 px-3 py-2 text-xs font-bold hover:bg-slate-800">View</button>{(application.screeningId || application.status === 'failed') && <button type="button" disabled={actionId === `recover:${application.id}`} onClick={() => openScreening(application)} className="shrink-0 whitespace-nowrap rounded-lg border border-indigo-500/30 px-3 py-2 text-xs font-bold text-indigo-300 hover:bg-indigo-500/10 disabled:opacity-50">{actionId === `recover:${application.id}` ? 'Opening…' : 'Screening'}</button>}</div></td>
 
                   </tr>
 

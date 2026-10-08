@@ -37,6 +37,8 @@ export default function ScreeningDetailPage() {
   useEffect(() => { load(); }, [screeningId]);
 
   async function handleReanalyze() {
+    if (data?.candidates?.some((candidate) => candidate.analysisStatus === 'completed') &&
+        !window.confirm('Re-analyze this screening? Existing AI scores and recommendations may change.')) return;
     try {
       setReanalyzing(true);
       setError('');
@@ -122,6 +124,16 @@ export default function ScreeningDetailPage() {
         </div>
       </header>
 
+      {candidates.some((candidate) => candidate.parsingStatus === 'failed' || candidate.analysisStatus === 'failed') && (
+        <section className="rounded-xl border border-rose-500/25 bg-rose-500/10 p-4">
+          <h2 className="mb-2 text-sm font-black text-rose-300">Screening failure details</h2>
+          {candidates.filter((candidate) => candidate.parsingStatus === 'failed' || candidate.analysisStatus === 'failed').map((candidate) => (
+            <p key={candidate.id} className="mt-2 whitespace-pre-wrap break-words text-sm text-rose-200">
+              {candidate.originalFileName}: {candidate.parsingStatus === 'failed' ? candidate.parsingError || 'Resume parsing failed' : candidate.analysisError || 'AI analysis failed'}
+            </p>
+          ))}
+        </section>
+      )}
       {error && <div className="rounded-xl border border-rose-500/25 bg-rose-500/10 p-4 text-sm text-rose-300">{error}</div>}
 
       <section className="rounded-2xl border border-slate-800 bg-[#0b1220] p-5">

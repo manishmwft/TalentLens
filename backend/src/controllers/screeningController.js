@@ -11,6 +11,8 @@ import { recordCandidateEvent } from '../services/candidateTimelineService.js';
 import { AppError } from '../utils/AppError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { uploadPublicFile, deleteBlob } from '../services/blobStorageService.js';
+import { WebsiteApplication } from '../models/WebsiteApplication.js';
+import { processPromotedWebsiteApplications } from '../services/websiteApplicationProcessingService.js';
 
 
 function screeningAccessFilter(user, extra = {}) {
@@ -447,6 +449,40 @@ export const reanalyzeScreening = asyncHandler(async (req, res) => {
   const screening = await findAccessibleScreening(req.user, req.params.screeningId);
 
   if (!screening) throw new AppError('Screening not found', 404);
+
+  // Website screenings reuse their original application, candidate and screening.
+  // This also retries failed resume parsing instead of requiring parsed text first.
+  if (screening.source === 'website') {
+    const application = await WebsiteApplication.findOne({
+      organization: screening.organization,
+      $or: [{ screening: screening._id }, { _id: screening.websiteApplication }],
+    });
+    if (!application) {
+      throw new AppError('Original website application was not found. Retry is unavailable.', 404);
+    }
+    if (!application.resumePath) {
+      throw new AppError('Original resume is unavailable. Restore the resume before re-analyzing.', 400);
+    }
+    if (!application.candidate) {
+      throw new AppError('Website candidate record is missing. The application needs recovery before re-analysis.', 409);
+    }
+    // Processing service requires this transition; do not create another candidate.
+    application.status = 'screening';
+    await application.save();
+    await processPromotedWebsiteApplications({
+      organization: screening.organization,
+      actor: req.user,
+      applicationIds: [application._id.toString()],
+    });
+    const updatedScreening = await Screening.findById(screening._id);
+    const updatedCandidates = await Candidate.find({ screening: screening._id });
+    return res.json({
+      success: true,
+      message: 'Website candidate re-analysis finished',
+      screening: serializeScreening(updatedScreening),
+      candidates: updatedCandidates.map((candidate) => serializeCandidate(candidate)),
+    });
+  }
 
   const candidates = await Candidate.find({
     screening: screening._id,

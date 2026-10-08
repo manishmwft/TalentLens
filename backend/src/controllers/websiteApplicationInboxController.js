@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { WebsiteApplication } from '../models/WebsiteApplication.js';
 import { Candidate } from '../models/Candidate.js';
+import { Screening } from '../models/Screening.js';
 import { promoteWebsiteApplications } from '../services/websiteApplicationPromotionService.js';
 import { processPromotedWebsiteApplications } from '../services/websiteApplicationProcessingService.js';
 import { autoMapPendingWordPressApplications } from '../services/wordpressJobAutoMappingService.js';
@@ -378,4 +379,58 @@ export const screenSelectedWebsiteApplications = asyncHandler(async (req, res) =
       nextStep: failed > 0 ? 'review_failed_applications' : 'screening_complete',
     },
   });
+});
+
+
+// Attach a missing screening to an existing failed application; do not start AI here.
+export const recoverFailedWebsiteScreening = asyncHandler(async (req, res) => {
+  const organization = requireOrganization(req.user);
+  const application = await WebsiteApplication.findOne({
+    _id: req.params.applicationId, organization,
+  });
+  if (!application) throw new AppError('Website application not found', 404);
+
+  // Prefer the existing link, then check for an orphaned screening from an interrupted request.
+  let screening = application.screening
+    ? await Screening.findOne({ _id: application.screening, organization, source: 'website' })
+    : null;
+  if (!screening) {
+    screening = await Screening.findOne({
+      organization, source: 'website', websiteApplication: application._id,
+    });
+  }
+  if (screening) {
+    if (!application.screening || String(application.screening) !== String(screening._id)) {
+      application.screening = screening._id;
+      await application.save();
+    }
+    return res.json({ success: true, screeningId: String(screening._id) });
+  }
+  if (application.status !== 'failed') {
+    throw new AppError('Only failed applications can recover a missing screening', 409);
+  }
+  if (!application.resumePath) {
+    throw new AppError('Original resume is missing; restore it before retrying', 409);
+  }
+  const originalError = application.lastError || 'Automatic screening failed before a screening record was created.';
+  const result = await promoteWebsiteApplications({
+    organization, recruiter: req.user, applicationIds: [String(application._id)],
+    allowFailedRecovery: true,
+  });
+  const item = [...result.promoted, ...result.alreadyPromoted][0];
+  if (!item?.screeningId) throw new AppError('Screening recovery could not be completed', 500);
+
+  // Preserve the original failure and make it visible on the existing Screening Result page.
+  await Candidate.updateOne({ _id: item.candidateId, websiteApplication: application._id }, {
+    $set: { parsingStatus: 'failed', parsingError: originalError,
+      analysisStatus: 'failed', analysisError: originalError },
+  });
+  await Screening.updateOne({ _id: item.screeningId, organization, source: 'website' }, {
+    $set: { status: 'failed', analysisStatus: 'failed', totalCandidates: 1,
+      failedCandidates: 1, failedAnalysisCandidates: 1 },
+  });
+  await WebsiteApplication.updateOne({ _id: application._id, organization }, {
+    $set: { status: 'failed', parsingStatus: 'failed', analysisStatus: 'failed', lastError: originalError },
+  });
+  return res.json({ success: true, screeningId: item.screeningId });
 });

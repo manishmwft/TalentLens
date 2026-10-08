@@ -139,6 +139,7 @@ export async function promoteWebsiteApplications({
   organization,
   recruiter,
   applicationIds,
+  allowFailedRecovery = false,
 }) {
   const applications = await WebsiteApplication.find({
     _id: { $in: applicationIds },
@@ -181,7 +182,7 @@ export async function promoteWebsiteApplications({
 
   const disallowed = applications.filter(
     (application) =>
-      !['ready_for_review', 'selected_for_screening', 'screening'].includes(
+      !['ready_for_review', 'selected_for_screening', 'screening', ...(allowFailedRecovery ? ['failed'] : [])].includes(
         application.status,
       ),
   );
